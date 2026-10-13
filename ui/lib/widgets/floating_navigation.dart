@@ -96,7 +96,7 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final systemPadding = MediaQuery.of(context).padding;
-    final isVertical = widget.direction == Axis.vertical;
+    final isVertical = widget.direction == .vertical;
 
     final padding = EdgeInsets.only(
       left: widget.screenOffset + (widget.safeArea ? systemPadding.left : 0),
@@ -106,7 +106,7 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
     );
 
     return Stack(
-      fit: StackFit.expand,
+      fit: .expand,
       children: [
         Positioned.fill(child: widget.child),
         Align(
@@ -115,7 +115,7 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
             padding: padding,
             child: Flex(
               direction: widget.direction,
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: .min,
               children: [
                 _buildToolbar(colorScheme, isVertical),
                 if (widget.customButton != null) ...[
@@ -136,13 +136,13 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
       elevation: widget.elevation,
       shadowColor: colorScheme.shadow.withValues(alpha: 0.50),
       shape: const StadiumBorder(),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: .antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(4),
         child: Flex(
           spacing: 1,
-          direction: isVertical ? Axis.vertical : Axis.horizontal,
-          mainAxisSize: MainAxisSize.min,
+          direction: isVertical ? .vertical : .horizontal,
+          mainAxisSize: .min,
           children: [for (final item in widget.items) _buildAction(item, colorScheme)],
         ),
       ),
@@ -169,9 +169,9 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
         curve: widget.animationCurve,
         decoration: BoxDecoration(
           color: isActive ? widget.activeColor ?? colorScheme.secondaryContainer : Colors.transparent,
-          shape: BoxShape.circle,
+          shape: .circle,
         ),
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: .antiAlias,
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -215,7 +215,7 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
     final activeDuration = isActive ? widget.animationDuration : Duration.zero;
 
     return Stack(
-      alignment: Alignment.center,
+      alignment: .center,
       children: [
         AnimatedOpacity(
           opacity: isActive ? 0.0 : 1.0,

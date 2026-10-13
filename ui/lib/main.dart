@@ -1,9 +1,11 @@
 import 'package:cupertino_ui/cupertino_ui.dart' as cupertino;
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:ui/widgets/floating_navigation.dart';
 import 'package:ui/widgets/menu_list_button.dart';
+import 'package:ui/widgets/tag.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() async {
@@ -29,17 +31,20 @@ void main() async {
 class UI extends StatelessWidget {
   const UI({super.key});
 
+  static final _subThemeData = const FlexSubThemesData(
+    interactionEffects: true,
+    tintedDisabledControls: true,
+    blendOnColors: true,
+    useM2StyleDividerInM3: true,
+    inputDecoratorIsFilled: true,
+    inputDecoratorBorderType: FlexInputBorderType.outline,
+    alignedDropdown: true,
+    navigationRailUseIndicator: true,
+  );
+
   static ThemeData light = FlexThemeData.light(
     scheme: FlexScheme.blue,
-    subThemesData: const FlexSubThemesData(
-      interactionEffects: true,
-      tintedDisabledControls: true,
-      useM2StyleDividerInM3: true,
-      inputDecoratorIsFilled: true,
-      inputDecoratorBorderType: FlexInputBorderType.outline,
-      alignedDropdown: true,
-      navigationRailUseIndicator: true,
-    ),
+    subThemesData: _subThemeData,
     fontFamily: 'HarmonyOS Sans SC',
     visualDensity: FlexColorScheme.comfortablePlatformDensity,
     cupertinoOverrideTheme: cupertino.CupertinoThemeData(applyThemeToAll: true).noDefault(),
@@ -47,16 +52,7 @@ class UI extends StatelessWidget {
 
   static ThemeData dark = FlexThemeData.dark(
     scheme: FlexScheme.blue,
-    subThemesData: const FlexSubThemesData(
-      interactionEffects: true,
-      tintedDisabledControls: true,
-      blendOnColors: true,
-      useM2StyleDividerInM3: true,
-      inputDecoratorIsFilled: true,
-      inputDecoratorBorderType: FlexInputBorderType.outline,
-      alignedDropdown: true,
-      navigationRailUseIndicator: true,
-    ),
+    subThemesData: _subThemeData,
     fontFamily: 'HarmonyOS Sans SC',
     visualDensity: FlexColorScheme.comfortablePlatformDensity,
     cupertinoOverrideTheme: cupertino.CupertinoThemeData(applyThemeToAll: true).noDefault(),
@@ -68,7 +64,14 @@ class UI extends StatelessWidget {
   }
 
   Widget _buildApp(ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-    return MaterialApp(themeMode: ThemeMode.system, theme: light, darkTheme: dark, home: _AppPage());
+    return MaterialApp(
+      themeMode: ThemeMode.system,
+      //showPerformanceOverlay: kDebugMode,
+      title: 'miuo',
+      theme: dark,
+      darkTheme: dark,
+      home: _AppPage(),
+    );
   }
 }
 
@@ -84,12 +87,24 @@ class _AppPageState extends State<_AppPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         elevation: 1,
         toolbarHeight: 40,
         centerTitle: true,
-        title: DragToMoveArea(child: Row(children: [Text('miuo'), const Spacer()])),
+        titleSpacing: 0,
+        title: DragToMoveArea(
+          child: Row(
+            children: [
+              SizedBox(width: 15),
+              Text('miuo'),
+              const Spacer(),
+              Tag('Dev Cert', backgroundColor: theme.onSurfaceVariant, radius: 8, textColor: Colors.white),
+              SizedBox(width: 5),
+            ],
+          ),
+        ),
         actions: [
           IconButton(
             onPressed: () async {
@@ -146,7 +161,7 @@ class _AppPageState extends State<_AppPage> {
           ],
         ),
         child: Center(
-          child: ElevatedButton(child: const Text('data'), onPressed: () {}),
+          child: FilledButton(child: const Text('data'), onPressed: () {}),
         ),
       ),
     );

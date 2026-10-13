@@ -102,26 +102,47 @@ class _StaggeredSlideState extends State<_StaggeredSlide> {
   }
 }
 
-class _MainSlide extends AnimatedWidget {
-  const _MainSlide({required this.controller, required this.child}) : super(listenable: controller);
+class _AnimatedElevation extends StatelessWidget {
+  const _AnimatedElevation({
+    required this.controller,
+    required this.scheme,
+    required this.shape,
+    required this.child,
+    required this.elevation,
+  });
 
   final AnimationController controller;
+  final ColorScheme scheme;
+  final ShapeBorder shape;
   final Widget child;
+  final double elevation;
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isReversing = controller.status == AnimationStatus.reverse || controller.status == AnimationStatus.dismissed;
-    final t = isReversing ? Curves.easeInCubic.transform((1 - controller.value).clamp(0.0, 1.0)) : 0.0;
+    if (elevation <= 0) return child;
 
-    return Transform.translate(offset: Offset(screenWidth * t, 0), child: child);
+    return AnimatedBuilder(
+      animation: controller,
+      child: child,
+      builder: (context, child) {
+        final animatedElevation = elevation * Curves.easeInOutCubic.transform(controller.value);
+
+        return PhysicalShape(
+          clipper: ShapeBorderClipper(shape: shape),
+          color: scheme.primary,
+          shadowColor: scheme.shadow,
+          elevation: animatedElevation,
+          clipBehavior: Clip.none,
+          child: child,
+        );
+      },
+    );
   }
 }
 
 ButtonStyle _buttonStyle(ColorScheme scheme, OutlinedBorder shape, EdgeInsets padding) {
   return ButtonStyle(
     backgroundColor: WidgetStatePropertyAll(scheme.primary),
-    foregroundColor: const WidgetStatePropertyAll(Colors.white),
     overlayColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.pressed)) {
         return Colors.white.withValues(alpha: 0.24);
@@ -150,6 +171,7 @@ class ExpandUpMenuButton extends StatefulWidget {
     this.blurSigma = 1,
     this.barrierOpacity = 0.5,
     this.barrierBlur = true,
+    this.elevation = 0,
   });
 
   final List<ExpandMenuItem> items;
@@ -161,6 +183,7 @@ class ExpandUpMenuButton extends StatefulWidget {
   final double blurSigma;
   final double barrierOpacity;
   final bool barrierBlur;
+  final double elevation;
 
   @override
   State<ExpandUpMenuButton> createState() => _ExpandUpMenuButtonState();
@@ -172,6 +195,7 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
 
   int _openToken = 0;
   bool _isClosing = false;
+  bool _isExpanded = false;
 
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
@@ -185,7 +209,14 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
     reverseCurve: const Interval(0.65, 1.0, curve: Curves.easeIn),
   );
 
-  bool get _isOpen => _entry != null && !_isClosing;
+  @override
+  void didUpdateWidget(covariant ExpandUpMenuButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.elevation != widget.elevation) {
+      _entry?.markNeedsBuild();
+    }
+  }
 
   @override
   void dispose() {
@@ -228,19 +259,32 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
     setState(() {
       _entry = entry;
       _isClosing = false;
+      _isExpanded = false;
     });
 
     overlay.insert(entry);
     _ctrl.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !identical(_entry, entry) || _isClosing) return;
+
+      setState(() {
+        _isExpanded = true;
+      });
+      entry.markNeedsBuild();
+    });
   }
 
   void _reopen() {
     if (_entry == null || !_isClosing) return;
 
+    final entry = _entry!;
     ++_openToken;
     setState(() {
       _isClosing = false;
+      _isExpanded = true;
     });
+    entry.markNeedsBuild();
 
     _ctrl.forward();
   }
@@ -252,7 +296,9 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
     final token = ++_openToken;
     setState(() {
       _isClosing = true;
+      _isExpanded = false;
     });
+    entry.markNeedsBuild();
 
     _ctrl.reverse().then((_) {
       if (!mounted || _openToken != token || !identical(_entry, entry)) {
@@ -288,15 +334,21 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
         controller: _ctrl,
         index: index,
         count: count,
-        child: _MenuItemButton(
-          item: item,
-          size: widget.size,
+        child: _AnimatedElevation(
+          controller: _ctrl,
           scheme: scheme,
-          labelPosition: widget.labelPosition,
-          onTap: () {
-            _close();
-            item.onTap();
-          },
+          shape: const StadiumBorder(),
+          elevation: widget.elevation,
+          child: _MenuItemButton(
+            item: item,
+            size: widget.size,
+            scheme: scheme,
+            labelPosition: widget.labelPosition,
+            onTap: () {
+              _close();
+              item.onTap();
+            },
+          ),
         ),
       ),
     );
@@ -313,8 +365,6 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
               opacity: _fade,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                // A barrier tap should close, not reopen, an entry that is
-                // already in its closing animation.
                 onTap: _close,
                 child: widget.barrierBlur
                     ? BackdropFilter(
@@ -353,7 +403,16 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
             showWhenUnlinked: false,
             targetAnchor: Alignment.bottomRight,
             followerAnchor: Alignment.bottomRight,
-            child: _MainSlide(controller: _ctrl, child: _buildMainButton(isOpen: true)),
+            child: Material(
+              type: MaterialType.transparency,
+              child: _AnimatedElevation(
+                controller: _ctrl,
+                scheme: scheme,
+                shape: const CircleBorder(),
+                elevation: widget.elevation,
+                child: _buildMainButton(isOpen: _isExpanded),
+              ),
+            ),
           ),
         ),
       ],
@@ -367,7 +426,7 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
     return SizedBox(
       width: widget.size,
       height: widget.size,
-      child: ElevatedButton(
+      child: FilledButton(
         onPressed: _toggle,
         style: _buttonStyle(scheme, shape, EdgeInsets.zero),
         child: AnimatedSwitcher(
@@ -376,12 +435,7 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
             turns: _kIconTurnTween.animate(animation),
             child: FadeTransition(opacity: animation, child: child),
           ),
-          child: Icon(
-            isOpen ? widget.closeIcon : widget.icon,
-            key: ValueKey(isOpen),
-            color: Colors.white,
-            size: widget.size * 0.5,
-          ),
+          child: Icon(isOpen ? widget.closeIcon : widget.icon, key: ValueKey(isOpen), size: widget.size * 0.5),
         ),
       ),
     );
@@ -389,9 +443,14 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
 
   @override
   Widget build(BuildContext context) {
+    final hasOverlay = _entry != null;
+
     return CompositedTransformTarget(
       link: _link,
-      child: _buildMainButton(isOpen: _isOpen),
+      child: Opacity(
+        opacity: hasOverlay ? 0 : 1,
+        child: _buildMainButton(isOpen: _isExpanded),
+      ),
     );
   }
 }
@@ -415,11 +474,11 @@ class _MenuItemButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = Icon(item.icon, size: size * 0.5, color: Colors.white);
-    final label = Text(item.label ?? '', style: const TextStyle(color: Colors.white));
+    final icon = Icon(item.icon, size: size * 0.5);
+    final label = Text(item.label ?? '');
     final gap = SizedBox(width: size * 0.18);
 
-    return ElevatedButton(
+    return FilledButton(
       onPressed: onTap,
       style: _buttonStyle(
         scheme,
