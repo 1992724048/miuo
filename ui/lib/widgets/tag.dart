@@ -6,9 +6,9 @@ class Tag extends StatefulWidget {
     super.key,
     this.backgroundColor,
     this.textColor,
-    this.insets = 5,
-    this.radius = 5,
-    this.size = 11,
+    this.insets = 3,
+    this.radius = 12,
+    this.size = 10,
   });
 
   final String label;
