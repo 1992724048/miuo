@@ -1,167 +1,34 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:flutter/cupertino.dart' as cupertino;
+import 'package:flutter/gestures.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
-enum MenuLabelPosition { left, right }
+import 'radial_menu_geometry.dart';
+import 'radial_menu_item.dart';
+import 'radial_menu_style.dart';
+import 'radial_menu_timing.dart';
 
-class ExpandMenuItem {
-  const ExpandMenuItem({required this.icon, this.label, required this.onTap});
+export 'radial_menu_item.dart';
 
-  final IconData icon;
-  final String? label;
-  final VoidCallback onTap;
-}
+const double _centerIconClosedSize = 20;
+const double _centerIconOpenSize = 28;
+const double _ringMargin = 24;
+const double _maxOpenDiameter = 62;
+const double _scrollSensitivity = 0.010;
+const double _minDragRadius = 24;
+const double _inertiaDecay = 3.2;
+const double _maxInertiaVelocity = 8;
+const double _minInertiaVelocity = 0.04;
 
-class _SpringCurve extends Curve {
-  const _SpringCurve();
-
-  @override
-  double transformInternal(double t) {
-    if (t < 0.55) {
-      final inv = 1 - t / 0.55;
-      return 1.05 * (1 - inv * inv * inv);
-    }
-
-    if (t < 0.8) {
-      final u = (t - 0.55) / 0.25;
-      return 1.05 - 0.06 * (u * u * (3 - 2 * u));
-    }
-
-    final inv = 1 - (t - 0.8) / 0.2;
-    return 0.99 + 0.01 * (1 - inv * inv * inv);
-  }
-}
-
-class _StaggeredSlide extends StatefulWidget {
-  const _StaggeredSlide({
-    required this.controller,
-    required this.index,
-    required this.count,
-    required this.child,
-  });
-
-  final AnimationController controller;
-  final int index;
-  final int count;
-  final Widget child;
-
-  @override
-  State<_StaggeredSlide> createState() => _StaggeredSlideState();
-}
-
-class _StaggeredSlideState extends State<_StaggeredSlide> {
-  late CurvedAnimation _curved;
-
-  CurvedAnimation _createCurvedAnimation() {
-    const overlap = 0.1;
-
-    final count = widget.count;
-    final span = count == 1 ? 1.0 : 1 / (1 + overlap * (count - 1));
-    final step = span * overlap;
-    final fwdStart = (count - 1 - widget.index) * step;
-    final revStart = widget.index * step;
-
-    return CurvedAnimation(
-      parent: widget.controller,
-      curve: Interval(fwdStart, fwdStart + span, curve: const _SpringCurve()),
-      reverseCurve: Interval(
-        revStart,
-        revStart + span,
-        curve: Curves.easeInCubic,
-      ),
-    );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _curved = _createCurvedAnimation();
-  }
-
-  @override
-  void didUpdateWidget(covariant _StaggeredSlide oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    if (oldWidget.controller != widget.controller ||
-        oldWidget.index != widget.index ||
-        oldWidget.count != widget.count) {
-      _curved.dispose();
-      _curved = _createCurvedAnimation();
-    }
-  }
-
-  @override
-  void dispose() {
-    _curved.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-
-    return AnimatedBuilder(
-      animation: _curved,
-      child: widget.child,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(screenWidth * (1 - _curved.value), 0),
-          child: child,
-        );
-      },
-    );
-  }
-}
-
-class _AnimatedElevation extends StatelessWidget {
-  const _AnimatedElevation({
-    required this.controller,
-    required this.scheme,
-    required this.shape,
-    required this.child,
-    required this.elevation,
-  });
-
-  final AnimationController controller;
-  final ColorScheme scheme;
-  final ShapeBorder shape;
-  final Widget child;
-  final double elevation;
-
-  @override
-  Widget build(BuildContext context) {
-    if (elevation <= 0) return child;
-
-    return AnimatedBuilder(
-      animation: controller,
-      child: child,
-      builder: (context, child) {
-        final animatedElevation =
-            elevation * Curves.easeInOutCubic.transform(controller.value);
-
-        return PhysicalShape(
-          clipper: ShapeBorderClipper(shape: shape),
-          color: scheme.primary,
-          shadowColor: scheme.shadow,
-          elevation: animatedElevation,
-          clipBehavior: Clip.none,
-          child: child,
-        );
-      },
-    );
-  }
-}
-
-ButtonStyle _buttonStyle(OutlinedBorder shape, EdgeInsets padding) {
-  return ButtonStyle(
-    elevation: const WidgetStatePropertyAll(0),
-    shadowColor: const WidgetStatePropertyAll(Colors.transparent),
-    padding: WidgetStatePropertyAll(padding),
-    shape: WidgetStatePropertyAll(shape),
-    side: const WidgetStatePropertyAll(BorderSide.none),
-  );
-}
+const int _barrierInMs = 160;
+const int _barrierOutMs = 120;
+const int _barrierOutDelayMs = 100;
+const int _flipMs = 140;
+const int _iconSwapMs = 160;
 
 class ExpandUpMenuButton extends StatefulWidget {
   const ExpandUpMenuButton({
@@ -170,74 +37,117 @@ class ExpandUpMenuButton extends StatefulWidget {
     this.icon = Icons.add,
     this.closeIcon = Icons.close,
     this.size = 39,
-    this.gap = 3,
-    this.labelPosition = MenuLabelPosition.right,
+    this.gap = 6,
+    this.startAngle = math.pi,
     this.blurSigma = 2,
     this.barrierOpacity = 0.5,
     this.barrierBlur = true,
-    this.elevation = 0,
   });
 
   final List<ExpandMenuItem> items;
   final IconData icon;
   final IconData closeIcon;
   final double size;
+
+  /// 中心圆到矩形内端的间隙。
   final double gap;
-  final MenuLabelPosition labelPosition;
+
+  /// 第一项的方向角，默认朝向窗口左侧。
+  final double startAngle;
+
   final double blurSigma;
   final double barrierOpacity;
   final bool barrierBlur;
-  final double elevation;
 
   @override
   State<ExpandUpMenuButton> createState() => _ExpandUpMenuButtonState();
 }
 
 class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton>
-    with SingleTickerProviderStateMixin {
-  final _link = cupertino.LayerLink();
+    with TickerProviderStateMixin {
+  final ValueNotifier<double> _rotation = ValueNotifier<double>(0);
+  final ValueNotifier<bool> _dragging = ValueNotifier<bool>(false);
+  final List<bool> _flipped = <bool>[];
+
+  late final AnimationController _expand = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: radialMenuItemOpenMs),
+  );
+
+  late final AnimationController _barrier = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: _barrierInMs),
+    reverseDuration: const Duration(milliseconds: _barrierOutMs),
+  );
+
+  late final CurvedAnimation _barrierFade = CurvedAnimation(
+    parent: _barrier,
+    curve: Curves.easeOut,
+    reverseCurve: Curves.easeIn,
+  );
+
   OverlayEntry? _entry;
+  Offset? _center;
+  Offset? _dragPointer;
+  Ticker? _inertiaTicker;
+  double _angularVelocity = 0;
+  Duration _lastInertiaTick = Duration.zero;
 
   int _openToken = 0;
   bool _isClosing = false;
-  bool _isExpanded = false;
-
-  late final AnimationController _ctrl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 460),
-    reverseDuration: const Duration(milliseconds: 260),
-  );
-
-  late final CurvedAnimation _fade = CurvedAnimation(
-    parent: _ctrl,
-    curve: const Interval(0.0, 0.35, curve: Curves.easeOut),
-    reverseCurve: const Interval(0.65, 1.0, curve: Curves.easeIn),
-  );
 
   @override
   void didUpdateWidget(covariant ExpandUpMenuButton oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (oldWidget.elevation != widget.elevation) {
-      _entry?.markNeedsBuild();
+    final entry = _entry;
+    if (entry == null) {
+      return;
     }
+
+    _applyDurations(widget.items.length);
+    entry.markNeedsBuild();
   }
 
   @override
   void dispose() {
     ++_openToken;
+    _stopInertia();
 
     final entry = _entry;
     _entry = null;
-
     if (entry != null) {
       entry.remove();
       entry.dispose();
     }
 
-    _fade.dispose();
-    _ctrl.dispose();
+    _barrierFade.dispose();
+    _barrier.dispose();
+    _expand.dispose();
+    _rotation.dispose();
+    _dragging.dispose();
     super.dispose();
+  }
+
+  Duration _timing(int milliseconds) {
+    final disabled = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    return Duration(milliseconds: disabled ? 1 : milliseconds);
+  }
+
+  void _applyDurations(int count) {
+    _expand.duration = _timing(radialMenuOpenDurationMs(count));
+    _expand.reverseDuration = _timing(radialMenuCloseDurationMs(count));
+    _barrier.duration = _timing(_barrierInMs);
+    _barrier.reverseDuration = _timing(_barrierOutMs);
+  }
+
+  Offset _resolveCenter() {
+    final renderObject = context.findRenderObject();
+    if (renderObject is RenderBox && renderObject.hasSize) {
+      return renderObject.localToGlobal(renderObject.size.center(Offset.zero));
+    }
+
+    return MediaQuery.sizeOf(context).center(Offset.zero);
   }
 
   void _toggle() {
@@ -252,60 +162,63 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton>
 
   void _open() {
     if (_entry != null) {
-      if (_isClosing) _reopen();
+      if (_isClosing) {
+        _reopen();
+      }
       return;
     }
 
     final overlay = Overlay.of(context, rootOverlay: true);
     final captured = InheritedTheme.capture(from: context, to: overlay.context);
-    final entry = OverlayEntry(builder: (_) => captured.wrap(_buildOverlay()));
+    final entry = OverlayEntry(
+      builder: (overlayContext) =>
+          captured.wrap(Builder(builder: _buildOverlay)),
+    );
+
+    _center = _resolveCenter();
+    _flipped.clear();
+    _applyDurations(widget.items.length);
 
     ++_openToken;
     setState(() {
       _entry = entry;
       _isClosing = false;
-      _isExpanded = false;
     });
 
     overlay.insert(entry);
-    _ctrl.forward();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !identical(_entry, entry) || _isClosing) return;
-
-      setState(() {
-        _isExpanded = true;
-      });
-      entry.markNeedsBuild();
-    });
+    _expand.forward(from: 0);
+    _barrier.forward(from: 0);
   }
 
   void _reopen() {
-    if (_entry == null || !_isClosing) return;
+    final entry = _entry;
+    if (entry == null || !_isClosing) {
+      return;
+    }
 
-    final entry = _entry!;
     ++_openToken;
-    setState(() {
-      _isClosing = false;
-      _isExpanded = true;
-    });
+    setState(() => _isClosing = false);
+    _applyDurations(widget.items.length);
     entry.markNeedsBuild();
 
-    _ctrl.forward();
+    _expand.forward();
+    _barrier.forward();
   }
 
   void _close() {
     final entry = _entry;
-    if (entry == null || _isClosing) return;
+    if (entry == null || _isClosing) {
+      return;
+    }
+
+    _stopInertia();
 
     final token = ++_openToken;
-    setState(() {
-      _isClosing = true;
-      _isExpanded = false;
-    });
+    setState(() => _isClosing = true);
+    _applyDurations(widget.items.length);
     entry.markNeedsBuild();
 
-    _ctrl.reverse().then((_) {
+    _expand.reverse().then((_) {
       if (!mounted || _openToken != token || !identical(_entry, entry)) {
         return;
       }
@@ -318,203 +231,410 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton>
       entry.remove();
       entry.dispose();
     });
+
+    unawaited(_fadeBarrierOut(token));
   }
 
-  List<Widget> _buildMenuItems(ColorScheme scheme) {
-    final items = widget.items;
-    final count = items.length;
+  Future<void> _fadeBarrierOut(int token) async {
+    await Future<void>.delayed(_timing(_barrierOutDelayMs));
+    if (!mounted || _openToken != token) {
+      return;
+    }
 
-    return [
-      for (var i = 0; i < count; i++)
-        _buildMenuItem(item: items[i], index: i, count: count, scheme: scheme),
-    ];
+    await _barrier.reverse();
   }
 
-  Widget _buildMenuItem({
-    required ExpandMenuItem item,
-    required int index,
-    required int count,
-    required ColorScheme scheme,
-  }) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: widget.gap),
-      child: _StaggeredSlide(
-        controller: _ctrl,
-        index: index,
-        count: count,
-        child: _AnimatedElevation(
-          controller: _ctrl,
-          scheme: scheme,
-          shape: const StadiumBorder(),
-          elevation: widget.elevation,
-          child: _MenuItemButton(
-            item: item,
-            size: widget.size,
-            labelPosition: widget.labelPosition,
-            onTap: () {
-              _close();
-              item.onTap();
-            },
-          ),
-        ),
+  void _rotateBy(double delta) {
+    if (delta == 0) {
+      return;
+    }
+
+    _rotation.value = normalizeAngle(_rotation.value + delta);
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) {
+      return;
+    }
+
+    _stopInertia();
+    final scroll = event.scrollDelta;
+    _rotateBy((scroll.dy + scroll.dx) * _scrollSensitivity);
+  }
+
+  void _handlePanStart(DragStartDetails details) {
+    _stopInertia();
+    _dragPointer = details.globalPosition;
+    _dragging.value = true;
+  }
+
+  void _handlePanUpdate(DragUpdateDetails details) {
+    final center = _center;
+    final previous = _dragPointer;
+    if (center == null || previous == null) {
+      return;
+    }
+
+    final current = details.globalPosition;
+    _dragPointer = current;
+    _rotateBy(
+      dragRotationDelta(
+        center: center,
+        previousPointer: previous,
+        currentPointer: current,
+        minPointerRadius: _minDragRadius,
       ),
     );
   }
 
-  Widget _buildOverlay() {
-    final scheme = Theme.of(context).colorScheme;
+  void _handlePanEnd(DragEndDetails details) {
+    final pointer = _dragPointer;
+    _dragPointer = null;
+    _dragging.value = false;
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: RepaintBoundary(
-            child: FadeTransition(
-              opacity: _fade,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _close,
-                child: widget.barrierBlur
-                    ? BackdropFilter(
-                        filter: ImageFilter.blur(
-                          sigmaX: widget.blurSigma,
-                          sigmaY: widget.blurSigma,
-                        ),
-                        child: Container(
-                          color: scheme.surface.withValues(
-                            alpha: widget.barrierOpacity,
-                          ),
-                        ),
-                      )
-                    : Container(
-                        color: scheme.surface.withValues(
-                          alpha: widget.barrierOpacity,
-                        ),
-                      ),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          right: 0,
-          bottom: 0,
-          child: CompositedTransformFollower(
-            link: _link,
-            showWhenUnlinked: false,
-            targetAnchor: Alignment.topRight,
-            followerAnchor: Alignment.bottomRight,
-            offset: Offset(0, -widget.gap),
-            child: Material(
-              type: MaterialType.transparency,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: _buildMenuItems(scheme),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          right: 0,
-          bottom: 0,
-          child: CompositedTransformFollower(
-            link: _link,
-            showWhenUnlinked: false,
-            targetAnchor: Alignment.bottomRight,
-            followerAnchor: Alignment.bottomRight,
-            child: Material(
-              type: MaterialType.transparency,
-              child: _AnimatedElevation(
-                controller: _ctrl,
-                scheme: scheme,
-                shape: const CircleBorder(),
-                elevation: widget.elevation,
-                child: _buildMainButton(isOpen: _isExpanded),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
+    final center = _center;
+    if (center == null || pointer == null) {
+      return;
+    }
+
+    final radial = pointer - center;
+    final radius = radial.distance;
+    if (radius < _minDragRadius) {
+      return;
+    }
+
+    final tangent = Offset(-radial.dy, radial.dx) / radius;
+    final velocity = details.velocity.pixelsPerSecond;
+    final tangential = velocity.dx * tangent.dx + velocity.dy * tangent.dy;
+    _startInertia(tangential / radius);
   }
 
-  Widget _buildMainButton({required bool isOpen}) {
+  void _handlePanCancel() {
+    _dragPointer = null;
+    _dragging.value = false;
+  }
+
+  void _startInertia(double velocity) {
+    _stopInertia();
+
+    final clamped = velocity
+        .clamp(-_maxInertiaVelocity, _maxInertiaVelocity)
+        .toDouble();
+    if (clamped.abs() < _minInertiaVelocity) {
+      return;
+    }
+
+    _angularVelocity = clamped;
+    _lastInertiaTick = Duration.zero;
+    _inertiaTicker = createTicker(_handleInertiaTick)..start();
+  }
+
+  void _handleInertiaTick(Duration elapsed) {
+    final deltaSeconds =
+        (elapsed - _lastInertiaTick).inMicroseconds /
+        Duration.microsecondsPerSecond;
+    _lastInertiaTick = elapsed;
+
+    if (deltaSeconds <= 0) {
+      return;
+    }
+
+    _angularVelocity *= math.exp(-_inertiaDecay * deltaSeconds);
+    if (_angularVelocity.abs() < _minInertiaVelocity) {
+      _stopInertia();
+      return;
+    }
+
+    _rotateBy(_angularVelocity * deltaSeconds);
+  }
+
+  void _stopInertia() {
+    final ticker = _inertiaTicker;
+    _inertiaTicker = null;
+    _angularVelocity = 0;
+
+    if (ticker == null) {
+      return;
+    }
+
+    ticker.stop();
+    ticker.dispose();
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      _close();
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
+  }
+
+  void _syncFlipCount(int count) {
+    while (_flipped.length < count) {
+      _flipped.add(false);
+    }
+
+    if (_flipped.length > count) {
+      _flipped.length = count;
+    }
+  }
+
+  bool _resolveFlip(int index, double angle) {
+    final flipped = resolveFlipped(
+      angle: angle,
+      currentlyFlipped: _flipped[index],
+    );
+    _flipped[index] = flipped;
+    return flipped;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(opacity: _entry == null ? 1 : 0, child: _buildTrigger());
+  }
+
+  Widget _buildTrigger() {
+    final scheme = Theme.of(context).colorScheme;
+
     return SizedBox(
       width: widget.size,
       height: widget.size,
       child: FilledButton(
         onPressed: _toggle,
-        style: _buttonStyle(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-          EdgeInsets.zero,
+        style: radialMenuButtonStyle(
+          scheme: scheme,
+          borderRadius: BorderRadius.zero,
         ),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
-          transitionBuilder: (child, animation) => RotationTransition(
-            turns: _kIconTurnTween.animate(animation),
-            child: FadeTransition(opacity: animation, child: child),
-          ),
-          child: Icon(
-            isOpen ? widget.closeIcon : widget.icon,
-            key: ValueKey(isOpen),
-            size: widget.size * 0.5,
+        child: Icon(widget.icon, size: _centerIconClosedSize),
+      ),
+    );
+  }
+
+  Widget _buildOverlay(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final windowSize = MediaQuery.sizeOf(context);
+    final center = _center ?? windowSize.center(Offset.zero);
+    final openDiameter = radialMenuOpenDiameter(
+      center: center,
+      windowSize: windowSize,
+      maxDiameter: _maxOpenDiameter,
+    );
+    final animationsDisabled =
+        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
+    return Listener(
+      onPointerSignal: _handlePointerSignal,
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: _handleKeyEvent,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _buildBarrier(scheme),
+            _buildRing(
+              scheme: scheme,
+              center: center,
+              openDiameter: openDiameter,
+            ),
+            _buildCenter(
+              scheme: scheme,
+              center: center,
+              openDiameter: openDiameter,
+              iconSwapDuration: Duration(
+                milliseconds: animationsDisabled ? 1 : _iconSwapMs,
+              ),
+            ),
+            _buildDragLayer(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBarrier(ColorScheme scheme) {
+    final color = scheme.surface.withValues(alpha: widget.barrierOpacity);
+    final barrier = widget.barrierBlur
+        ? BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: widget.blurSigma,
+              sigmaY: widget.blurSigma,
+            ),
+            child: ColoredBox(color: color),
+          )
+        : ColoredBox(color: color);
+
+    return Positioned.fill(
+      child: RepaintBoundary(
+        child: FadeTransition(
+          opacity: _barrierFade,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _close,
+            child: barrier,
           ),
         ),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final hasOverlay = _entry != null;
+  Widget _buildRing({
+    required ColorScheme scheme,
+    required Offset center,
+    required double openDiameter,
+  }) {
+    final innerRadius = openDiameter / 2 + math.max(0, widget.gap);
+    final extent = innerRadius + radialMenuItemLength + _ringMargin;
 
-    return CompositedTransformTarget(
-      link: _link,
-      child: Opacity(
-        opacity: hasOverlay ? 0 : 1,
-        child: _buildMainButton(isOpen: _isExpanded),
+    return Positioned(
+      left: center.dx - extent,
+      top: center.dy - extent,
+      width: extent * 2,
+      height: extent * 2,
+      child: RepaintBoundary(
+        child: ValueListenableBuilder<double>(
+          valueListenable: _rotation,
+          builder: (context, rotation, _) {
+            return AnimatedBuilder(
+              animation: _expand,
+              builder: (context, _) {
+                final count = widget.items.length;
+                _syncFlipCount(count);
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    for (var index = 0; index < count; index++)
+                      _buildRingItem(
+                        scheme: scheme,
+                        index: index,
+                        count: count,
+                        rotation: rotation,
+                        innerRadius: innerRadius,
+                        extent: extent,
+                      ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
-}
 
-final _kIconTurnTween = Tween<double>(begin: 0.125, end: 0.0);
+  Widget _buildRingItem({
+    required ColorScheme scheme,
+    required int index,
+    required int count,
+    required double rotation,
+    required double innerRadius,
+    required double extent,
+  }) {
+    final item = widget.items[index];
+    final angle = itemAngle(
+      rotation: rotation,
+      startAngle: widget.startAngle,
+      index: index,
+      count: count,
+    );
+    final progress = _isClosing
+        ? radialMenuItemCloseProgress(_expand.value, index, count)
+        : radialMenuItemOpenProgress(_expand.value, index, count);
+    final flipped = _resolveFlip(index, angle);
+    final scale = 0.6 + 0.4 * progress;
+    final midRadius = innerRadius * progress + radialMenuItemLength * scale / 2;
+    final interactive = !_isClosing && item.enabled && progress >= 0.85;
 
-class _MenuItemButton extends StatelessWidget {
-  const _MenuItemButton({
-    required this.item,
-    required this.size,
-    required this.labelPosition,
-    required this.onTap,
-  });
-
-  final ExpandMenuItem item;
-  final double size;
-  final MenuLabelPosition labelPosition;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = Icon(item.icon, size: size * 0.5);
-    final label = Text(item.label ?? '');
-    final gap = SizedBox(width: size * 0.18);
-
-    return FilledButton(
-      onPressed: onTap,
-      style: _buttonStyle(
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-        EdgeInsets.symmetric(horizontal: size * 0.32, vertical: size * 0.24),
+    return Positioned(
+      left: extent - radialMenuItemLength / 2,
+      top: extent - radialMenuItemWidth / 2,
+      child: RadialRingItem(
+        item: item,
+        scheme: scheme,
+        angle: angle,
+        midRadius: midRadius,
+        scale: scale,
+        opacity: clampUnit(progress / 0.4),
+        flipped: flipped,
+        interactive: interactive,
+        flipDuration: _timing(_flipMs),
+        onTap: () {
+          _close();
+          item.onTap();
+        },
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: labelPosition == MenuLabelPosition.right
-            ? [
-                icon,
-                if (item.label != null) ...[gap, label],
-              ]
-            : [
-                if (item.label != null) ...[label, gap],
-                icon,
-              ],
+    );
+  }
+
+  Widget _buildCenter({
+    required ColorScheme scheme,
+    required Offset center,
+    required double openDiameter,
+    required Duration iconSwapDuration,
+  }) {
+    final closedRadius = math.max(1, widget.size) / 2;
+    final openRadius = openDiameter / 2;
+
+    return AnimatedBuilder(
+      animation: _expand,
+      builder: (context, _) {
+        final progress = radialMenuCenterProgress(
+          _expand.value,
+          widget.items.length,
+          closing: _isClosing,
+        );
+        final radius = closedRadius + (openRadius - closedRadius) * progress;
+        final isOpen = !_isClosing;
+
+        return Positioned(
+          left: center.dx - radius,
+          top: center.dy - radius,
+          width: radius * 2,
+          height: radius * 2,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: FilledButton(
+              onPressed: _toggle,
+              style: radialMenuButtonStyle(
+                scheme: scheme,
+                borderRadius: BorderRadius.circular(radius),
+              ),
+              child: AnimatedSwitcher(
+                duration: iconSwapDuration,
+                child: Icon(
+                  isOpen ? widget.closeIcon : widget.icon,
+                  key: ValueKey<bool>(isOpen),
+                  size:
+                      _centerIconClosedSize +
+                      (_centerIconOpenSize - _centerIconClosedSize) * progress,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDragLayer() {
+    return Positioned.fill(
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _dragging,
+        builder: (context, dragging, _) {
+          return MouseRegion(
+            opaque: false,
+            cursor: dragging ? SystemMouseCursors.grabbing : MouseCursor.defer,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onPanStart: _handlePanStart,
+              onPanUpdate: _handlePanUpdate,
+              onPanEnd: _handlePanEnd,
+              onPanCancel: _handlePanCancel,
+            ),
+          );
+        },
       ),
     );
   }
