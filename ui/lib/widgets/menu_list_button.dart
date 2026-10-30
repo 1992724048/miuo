@@ -34,7 +34,12 @@ class _SpringCurve extends Curve {
 }
 
 class _StaggeredSlide extends StatefulWidget {
-  const _StaggeredSlide({required this.controller, required this.index, required this.count, required this.child});
+  const _StaggeredSlide({
+    required this.controller,
+    required this.index,
+    required this.count,
+    required this.child,
+  });
 
   final AnimationController controller;
   final int index;
@@ -60,7 +65,11 @@ class _StaggeredSlideState extends State<_StaggeredSlide> {
     return CurvedAnimation(
       parent: widget.controller,
       curve: Interval(fwdStart, fwdStart + span, curve: const _SpringCurve()),
-      reverseCurve: Interval(revStart, revStart + span, curve: Curves.easeInCubic),
+      reverseCurve: Interval(
+        revStart,
+        revStart + span,
+        curve: Curves.easeInCubic,
+      ),
     );
   }
 
@@ -96,7 +105,10 @@ class _StaggeredSlideState extends State<_StaggeredSlide> {
       animation: _curved,
       child: widget.child,
       builder: (context, child) {
-        return Transform.translate(offset: Offset(screenWidth * (1 - _curved.value), 0), child: child);
+        return Transform.translate(
+          offset: Offset(screenWidth * (1 - _curved.value), 0),
+          child: child,
+        );
       },
     );
   }
@@ -125,7 +137,8 @@ class _AnimatedElevation extends StatelessWidget {
       animation: controller,
       child: child,
       builder: (context, child) {
-        final animatedElevation = elevation * Curves.easeInOutCubic.transform(controller.value);
+        final animatedElevation =
+            elevation * Curves.easeInOutCubic.transform(controller.value);
 
         return PhysicalShape(
           clipper: ShapeBorderClipper(shape: shape),
@@ -140,22 +153,13 @@ class _AnimatedElevation extends StatelessWidget {
   }
 }
 
-ButtonStyle _buttonStyle(ColorScheme scheme, OutlinedBorder shape, EdgeInsets padding) {
+ButtonStyle _buttonStyle(OutlinedBorder shape, EdgeInsets padding) {
   return ButtonStyle(
-    backgroundColor: WidgetStatePropertyAll(scheme.primary),
-    overlayColor: WidgetStateProperty.resolveWith((states) {
-      if (states.contains(WidgetState.pressed)) {
-        return Colors.white.withValues(alpha: 0.24);
-      }
-      if (states.contains(WidgetState.hovered) || states.contains(WidgetState.focused)) {
-        return Colors.white.withValues(alpha: 0.16);
-      }
-      return Colors.transparent;
-    }),
     elevation: const WidgetStatePropertyAll(0),
     shadowColor: const WidgetStatePropertyAll(Colors.transparent),
     padding: WidgetStatePropertyAll(padding),
     shape: WidgetStatePropertyAll(shape),
+    side: const WidgetStatePropertyAll(BorderSide.none),
   );
 }
 
@@ -165,10 +169,10 @@ class ExpandUpMenuButton extends StatefulWidget {
     required this.items,
     this.icon = Icons.add,
     this.closeIcon = Icons.close,
-    this.size = 46,
-    this.gap = 2,
+    this.size = 39,
+    this.gap = 3,
     this.labelPosition = MenuLabelPosition.right,
-    this.blurSigma = 1,
+    this.blurSigma = 2,
     this.barrierOpacity = 0.5,
     this.barrierBlur = true,
     this.elevation = 0,
@@ -189,7 +193,8 @@ class ExpandUpMenuButton extends StatefulWidget {
   State<ExpandUpMenuButton> createState() => _ExpandUpMenuButtonState();
 }
 
-class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTickerProviderStateMixin {
+class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton>
+    with SingleTickerProviderStateMixin {
   final _link = cupertino.LayerLink();
   OverlayEntry? _entry;
 
@@ -319,7 +324,10 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
     final items = widget.items;
     final count = items.length;
 
-    return [for (var i = 0; i < count; i++) _buildMenuItem(item: items[i], index: i, count: count, scheme: scheme)];
+    return [
+      for (var i = 0; i < count; i++)
+        _buildMenuItem(item: items[i], index: i, count: count, scheme: scheme),
+    ];
   }
 
   Widget _buildMenuItem({
@@ -342,7 +350,6 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
           child: _MenuItemButton(
             item: item,
             size: widget.size,
-            scheme: scheme,
             labelPosition: widget.labelPosition,
             onTap: () {
               _close();
@@ -368,10 +375,21 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
                 onTap: _close,
                 child: widget.barrierBlur
                     ? BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: widget.blurSigma, sigmaY: widget.blurSigma),
-                        child: Container(color: scheme.surface.withValues(alpha: widget.barrierOpacity)),
+                        filter: ImageFilter.blur(
+                          sigmaX: widget.blurSigma,
+                          sigmaY: widget.blurSigma,
+                        ),
+                        child: Container(
+                          color: scheme.surface.withValues(
+                            alpha: widget.barrierOpacity,
+                          ),
+                        ),
                       )
-                    : Container(color: scheme.surface.withValues(alpha: widget.barrierOpacity)),
+                    : Container(
+                        color: scheme.surface.withValues(
+                          alpha: widget.barrierOpacity,
+                        ),
+                      ),
               ),
             ),
           ),
@@ -420,22 +438,26 @@ class _ExpandUpMenuButtonState extends State<ExpandUpMenuButton> with SingleTick
   }
 
   Widget _buildMainButton({required bool isOpen}) {
-    final scheme = Theme.of(context).colorScheme;
-    final shape = isOpen ? const CircleBorder() : RoundedRectangleBorder(borderRadius: BorderRadius.circular(16));
-
     return SizedBox(
       width: widget.size,
       height: widget.size,
       child: FilledButton(
         onPressed: _toggle,
-        style: _buttonStyle(scheme, shape, EdgeInsets.zero),
+        style: _buttonStyle(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+          EdgeInsets.zero,
+        ),
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 220),
           transitionBuilder: (child, animation) => RotationTransition(
             turns: _kIconTurnTween.animate(animation),
             child: FadeTransition(opacity: animation, child: child),
           ),
-          child: Icon(isOpen ? widget.closeIcon : widget.icon, key: ValueKey(isOpen), size: widget.size * 0.5),
+          child: Icon(
+            isOpen ? widget.closeIcon : widget.icon,
+            key: ValueKey(isOpen),
+            size: widget.size * 0.5,
+          ),
         ),
       ),
     );
@@ -461,14 +483,12 @@ class _MenuItemButton extends StatelessWidget {
   const _MenuItemButton({
     required this.item,
     required this.size,
-    required this.scheme,
     required this.labelPosition,
     required this.onTap,
   });
 
   final ExpandMenuItem item;
   final double size;
-  final ColorScheme scheme;
   final MenuLabelPosition labelPosition;
   final VoidCallback onTap;
 
@@ -481,8 +501,7 @@ class _MenuItemButton extends StatelessWidget {
     return FilledButton(
       onPressed: onTap,
       style: _buttonStyle(
-        scheme,
-        const StadiumBorder(),
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
         EdgeInsets.symmetric(horizontal: size * 0.32, vertical: size * 0.24),
       ),
       child: Row(

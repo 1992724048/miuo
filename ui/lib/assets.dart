@@ -8,6 +8,7 @@ class Assets {
   Assets._();
 
   static const String harmonyOSSansSCRegular = 'packages/ui/assets/fonts/HarmonyOS_Sans_SC_Regular.ttf';
+  static const AssetGenImage icon = AssetGenImage('assets/imgs/icon.png');
   static const $AssetsGenAssets assets = $AssetsGenAssets();
 }
 
@@ -15,6 +16,13 @@ class $AssetsGenAssets {
   const $AssetsGenAssets();
 
   final $AssetsGenAssetsFonts fonts = const $AssetsGenAssetsFonts();
+  final $AssetsGenAssetsImgs imgs = const $AssetsGenAssetsImgs();
+}
+
+class $AssetsGenAssetsImgs {
+  const $AssetsGenAssetsImgs();
+
+  final AssetGenImage icon = const AssetGenImage('assets/imgs/icon.png');
 }
 
 class $AssetsGenAssetsFonts {

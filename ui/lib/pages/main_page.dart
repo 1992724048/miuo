@@ -1,8 +1,13 @@
+import 'package:ui/assets.dart';
+import 'package:ui/pages/game_list/game_list.dart';
+import 'package:ui/pages/home_page/home_page.dart';
 import 'package:ui/widgets/floating_navigation.dart';
 import 'package:ui/widgets/menu_list_button.dart';
 import 'package:ui/widgets/tag.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:window_manager/window_manager.dart';
+
+import '../widgets/rect_style.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -27,10 +32,11 @@ class _MainPageState extends State<MainPage> {
         title: DragToMoveArea(
           child: Row(
             children: [
+              Image.asset(Assets.assets.imgs.icon.keyName, height: 40),
               const SizedBox(width: 10),
-              Text('MiUO', style: TextStyle(fontSize: 22)),
+              Text('MiUO', style: TextStyle(fontSize: 18)),
               const Spacer(),
-              Tag('赞助版', radius: 5, insets: 6, size: 12),
+              Tag('赞助版', radius: 0, insets: 6, size: 12),
               SizedBox(height: 20, child: VerticalDivider()),
             ],
           ),
@@ -43,36 +49,45 @@ class _MainPageState extends State<MainPage> {
               setState(() {});
             },
             icon: Icon(
-              _isAlwaysOnTop ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+              _isAlwaysOnTop ? Icons.push_pin : Icons.push_pin_outlined,
             ),
+            style: RectStyle.iconButton,
           ),
           IconButton(
             onPressed: () async {
               await windowManager.minimize();
             },
-            icon: Icon(Icons.horizontal_rule_rounded),
+            icon: Icon(Icons.horizontal_rule),
+            style: RectStyle.iconButton,
           ),
           IconButton(
             onPressed: () async {
               await windowManager.close();
             },
-            icon: Icon(Icons.close_rounded),
+            icon: Icon(Icons.close),
+            style: RectStyle.iconButton,
           ),
         ],
       ),
       body: FloatingNavigation(
         items: [
           FloatingToolbarItem(
-            icon: Icons.featured_play_list_outlined,
-            activeIcon: Icons.featured_play_list_rounded,
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home,
             active: true,
-            tooltip: '功能',
+            tooltip: '首页',
             onPressed: () => true,
           ),
           FloatingToolbarItem(
-            icon: Icons.info_outline,
-            activeIcon: Icons.info_rounded,
-            tooltip: '关于',
+            icon: Icons.games_outlined,
+            activeIcon: Icons.games_sharp,
+            tooltip: '游戏',
+            onPressed: () => true,
+          ),
+          FloatingToolbarItem(
+            icon: Icons.download_outlined,
+            activeIcon: Icons.download,
+            tooltip: '下载',
             onPressed: () => true,
           ),
           FloatingToolbarItem(
@@ -82,44 +97,34 @@ class _MainPageState extends State<MainPage> {
             onPressed: () => true,
           ),
         ],
-        alignment: .bottomRight,
+        alignment: .bottomEnd,
         direction: .horizontal,
         customButton: ExpandUpMenuButton(
-          icon: Icons.menu,
+          icon: Icons.add_outlined,
           items: [
-            ExpandMenuItem(icon: Icons.home_rounded, label: '菜单', onTap: () {}),
             ExpandMenuItem(
-              icon: Icons.eighteen_mp,
-              label: '菜单菜单',
+              icon: Icons.lightbulb_outline_sharp,
+              label: '添加光影包',
               onTap: () {},
             ),
             ExpandMenuItem(
-              icon: Icons.one_k_plus,
-              label: '菜单菜单菜单',
+              icon: Icons.text_fields_sharp,
+              label: '添加材质包',
               onTap: () {},
             ),
             ExpandMenuItem(
-              icon: Icons.home_rounded,
-              label: '菜单菜单菜单菜单',
+              icon: Icons.important_devices_sharp,
+              label: '导入整合包',
               onTap: () {},
             ),
             ExpandMenuItem(
-              icon: Icons.home_rounded,
-              label: '菜单菜单菜单',
+              icon: Icons.videogame_asset_sharp,
+              label: '添加游戏版本',
               onTap: () {},
             ),
-            ExpandMenuItem(
-              icon: Icons.home_rounded,
-              label: '菜单菜单',
-              onTap: () {},
-            ),
-            ExpandMenuItem(icon: Icons.home_rounded, label: '菜单', onTap: () {}),
-            ExpandMenuItem(icon: Icons.home_rounded, onTap: () {}),
           ],
         ),
-        child: Center(
-          child: FilledButton(child: const Text('data'), onPressed: () {}),
-        ),
+        child: HomePage(),
       ),
     );
   }

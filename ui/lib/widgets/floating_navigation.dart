@@ -27,14 +27,14 @@ class FloatingNavigation extends StatefulWidget {
     required this.items,
     this.customButton,
     this.alignment = Alignment.bottomCenter,
-    this.screenOffset = 14,
+    this.screenOffset = 8,
     this.safeArea = true,
     this.backgroundColor,
     this.foregroundColor,
     this.activeColor,
-    this.actionSize = 40,
+    this.actionSize = 39,
     this.iconSize = 20,
-    this.buttonGap = 8,
+    this.buttonGap = 4,
     this.elevation = 0,
     this.direction = Axis.horizontal,
     this.animationDuration = const Duration(milliseconds: 250),
@@ -82,7 +82,10 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
   }
 
   void _assertSingleActive() {
-    assert(widget.items.where((item) => item.active).length <= 1, '只能有一个子项是激活状态');
+    assert(
+      widget.items.where((item) => item.active).length <= 1,
+      '只能有一个子项是激活状态',
+    );
   }
 
   FloatingToolbarItem? _findInitialActive() {
@@ -102,7 +105,8 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
       left: widget.screenOffset + (widget.safeArea ? systemPadding.left : 0),
       right: widget.screenOffset + (widget.safeArea ? systemPadding.right : 0),
       top: widget.screenOffset + (widget.safeArea ? systemPadding.top : 0),
-      bottom: widget.screenOffset + (widget.safeArea ? systemPadding.bottom : 0),
+      bottom:
+          widget.screenOffset + (widget.safeArea ? systemPadding.bottom : 0),
     );
 
     return Stack(
@@ -119,7 +123,10 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
               children: [
                 _buildToolbar(colorScheme, isVertical),
                 if (widget.customButton != null) ...[
-                  SizedBox(width: isVertical ? 0 : widget.buttonGap, height: isVertical ? widget.buttonGap : 0),
+                  SizedBox(
+                    width: isVertical ? 0 : widget.buttonGap,
+                    height: isVertical ? widget.buttonGap : 0,
+                  ),
                   widget.customButton!,
                 ],
               ],
@@ -135,15 +142,17 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
       color: widget.backgroundColor ?? colorScheme.surfaceContainer,
       elevation: widget.elevation,
       shadowColor: colorScheme.shadow.withValues(alpha: 0.50),
-      shape: const StadiumBorder(),
+      borderRadius: const BorderRadius.all(Radius.circular(0)),
       clipBehavior: .antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(0),
         child: Flex(
-          spacing: 1,
+          spacing: 0,
           direction: isVertical ? .vertical : .horizontal,
           mainAxisSize: .min,
-          children: [for (final item in widget.items) _buildAction(item, colorScheme)],
+          children: [
+            for (final item in widget.items) _buildAction(item, colorScheme),
+          ],
         ),
       ),
     );
@@ -168,14 +177,15 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
         duration: widget.animationDuration,
         curve: widget.animationCurve,
         decoration: BoxDecoration(
-          color: isActive ? widget.activeColor ?? colorScheme.secondaryContainer : Colors.transparent,
-          shape: .circle,
+          color: isActive
+              ? widget.activeColor ?? colorScheme.primaryContainer
+              : Colors.transparent,
+          shape: .rectangle,
         ),
         clipBehavior: .antiAlias,
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            customBorder: const CircleBorder(),
             onTap: item.enabled
                 ? () {
                     final shouldActivate = item.onPressed();
@@ -232,15 +242,14 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
           opacity: isActive ? 1.0 : 0.0,
           duration: activeDuration,
           curve: widget.animationCurve,
-          child: AnimatedRotation(
-            turns: isActive ? 0.0 : -0.5,
+          child: AnimatedScale(
+            scale: isActive ? 1.0 : 0.5,
             duration: activeDuration,
             curve: widget.animationCurve,
-            child: AnimatedScale(
-              scale: isActive ? 1.0 : 0.5,
-              duration: activeDuration,
-              curve: widget.animationCurve,
-              child: Icon(item.activeIcon!, size: widget.iconSize, color: iconColor),
+            child: Icon(
+              item.activeIcon!,
+              size: widget.iconSize,
+              color: iconColor,
             ),
           ),
         ),

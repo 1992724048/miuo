@@ -121,3 +121,9 @@ app.*.symbols
 *.vs
 *.Caches
 app/app/x64/*
+# Local tool/SKILL data
+.slim/
+.temp/
+
+# IDE user settings
+*.DotSettings.user
