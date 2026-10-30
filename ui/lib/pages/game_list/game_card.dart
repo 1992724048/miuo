@@ -1,6 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
-import '../../widgets/rect_style.dart';
+import '../../rect_style.dart';
 
 class GameCardData {
   const GameCardData(
