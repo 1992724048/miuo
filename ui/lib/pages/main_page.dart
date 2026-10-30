@@ -1,11 +1,11 @@
+import 'dart:ui';
+
 import 'package:ui/assets.dart';
-import 'package:ui/pages/home_page/home_page.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:ui/pages/tag.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../rect_style.dart';
-import 'floating_navigation.dart';
+import 'bottom_control.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -23,12 +23,8 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildTitleBar(),
-      body: FloatingNavigation(
-        items: _buildToolBarActions(),
-        alignment: .bottomEnd,
-        direction: .horizontal,
-        child: HomePage(),
-      ),
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+      body: BottomControl(),
     );
   }
 
@@ -41,21 +37,27 @@ class _MainPageState extends State<MainPage> {
           setState(() {});
         },
         icon: Icon(_isAlwaysOnTop ? Icons.push_pin : Icons.push_pin_outlined),
-        style: RectStyle.iconButton,
+        style: IconButton.styleFrom(
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
       ),
       IconButton(
         onPressed: () async {
           await windowManager.minimize();
         },
         icon: Icon(Icons.horizontal_rule),
-        style: RectStyle.iconButton,
+        style: IconButton.styleFrom(
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
       ),
       IconButton(
         onPressed: () async {
           await windowManager.close();
         },
         icon: Icon(Icons.close),
-        style: RectStyle.iconButton,
+        style: IconButton.styleFrom(
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
       ),
     ];
   }
@@ -66,9 +68,9 @@ class _MainPageState extends State<MainPage> {
         children: [
           Image.asset(Assets.assets.imgs.icon.keyName, height: 40),
           const SizedBox(width: 10),
-          const Text('MiUO', style: TextStyle(fontSize: 18)),
+          const Text('MiUO Launcher', style: TextStyle(fontSize: 18)),
           const Spacer(),
-          const Tag('赞助版', radius: 0, insets: 6, size: 12),
+          const Tag('26.1R', radius: 0, insets: 6, size: 12),
           const SizedBox(height: 20, child: VerticalDivider()),
         ],
       ),
@@ -77,42 +79,12 @@ class _MainPageState extends State<MainPage> {
 
   AppBar _buildTitleBar() {
     return AppBar(
-      elevation: 2,
+      elevation: 0,
       toolbarHeight: 40,
       centerTitle: true,
       titleSpacing: 0,
       title: _buildTopBarTitle(),
       actions: _buildTopBarActions(),
     );
-  }
-
-  List<FloatingToolbarItem> _buildToolBarActions() {
-    return [
-      FloatingToolbarItem(
-        icon: Icons.home_outlined,
-        activeIcon: Icons.home,
-        active: true,
-        tooltip: '首页',
-        onPressed: () => true,
-      ),
-      FloatingToolbarItem(
-        icon: Icons.games_outlined,
-        activeIcon: Icons.games_sharp,
-        tooltip: '游戏',
-        onPressed: () => true,
-      ),
-      FloatingToolbarItem(
-        icon: Icons.download_outlined,
-        activeIcon: Icons.download,
-        tooltip: '下载',
-        onPressed: () => true,
-      ),
-      FloatingToolbarItem(
-        icon: Icons.settings_outlined,
-        activeIcon: Icons.settings,
-        tooltip: '设置',
-        onPressed: () => true,
-      ),
-    ];
   }
 }

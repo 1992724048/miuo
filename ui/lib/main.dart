@@ -1,3 +1,5 @@
+import 'package:flex_color_scheme/flex_color_scheme.dart';
+import 'package:cupertino_ui/cupertino_ui.dart' as cupertino;
 import 'package:material_ui/material_ui.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:ui/pages/main_page.dart';
@@ -31,19 +33,36 @@ class UI extends StatelessWidget {
     return DynamicColorBuilder(builder: _buildApp);
   }
 
+  static final _subThemeData = const FlexSubThemesData(
+    interactionEffects: true,
+    tintedDisabledControls: true,
+    blendOnColors: true,
+    useM2StyleDividerInM3: true,
+    inputDecoratorIsFilled: true,
+    inputDecoratorBorderType: FlexInputBorderType.outline,
+    alignedDropdown: true,
+    navigationRailUseIndicator: true,
+  );
+
+  static ThemeData light = FlexThemeData.light(
+    scheme: FlexScheme.blue,
+    subThemesData: _subThemeData,
+    fontFamily: 'HarmonyOS Sans SC',
+    visualDensity: FlexColorScheme.comfortablePlatformDensity,
+    cupertinoOverrideTheme: cupertino.CupertinoThemeData(applyThemeToAll: true)
+        .noDefault(),
+  );
+
+  static ThemeData dark = FlexThemeData.dark(
+    scheme: FlexScheme.blue,
+    subThemesData: _subThemeData,
+    fontFamily: 'HarmonyOS Sans SC',
+    visualDensity: FlexColorScheme.comfortablePlatformDensity,
+    cupertinoOverrideTheme: cupertino.CupertinoThemeData(applyThemeToAll: true)
+        .noDefault(),
+  );
+
   Widget _buildApp(ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-    final light = ThemeData(
-      fontFamily: 'HarmonyOS Sans SC',
-      colorSchemeSeed: lightDynamic?.primary,
-      brightness: .light,
-    );
-
-    final dark = ThemeData(
-      fontFamily: 'HarmonyOS Sans SC',
-      colorSchemeSeed: darkDynamic?.primary,
-      brightness: .dark,
-    );
-
     return MaterialApp(
       themeMode: ThemeMode.system,
       //showPerformanceOverlay: kDebugMode,

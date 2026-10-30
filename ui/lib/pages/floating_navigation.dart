@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:material_ui/material_ui.dart';
 
 class FloatingToolbarItem {
@@ -32,12 +34,12 @@ class FloatingNavigation extends StatefulWidget {
     this.backgroundColor,
     this.foregroundColor,
     this.activeColor,
-    this.actionSize = 39,
+    this.actionSize = 38,
     this.iconSize = 20,
     this.buttonGap = 4,
     this.elevation = 0,
     this.direction = Axis.horizontal,
-    this.animationDuration = const Duration(milliseconds: 250),
+    this.animationDuration = const Duration(milliseconds: 200),
     this.animationCurve = Curves.easeInOut,
   }) : assert(items.length > 0, '至少需要一个工具栏操作项');
 
@@ -139,7 +141,7 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
 
   Widget _buildToolbar(ColorScheme colorScheme, bool isVertical) {
     return Material(
-      color: widget.backgroundColor ?? colorScheme.surfaceContainer,
+      color: widget.backgroundColor ?? colorScheme.onPrimary,
       elevation: widget.elevation,
       shadowColor: colorScheme.shadow.withValues(alpha: 0.50),
       borderRadius: const BorderRadius.all(Radius.circular(0)),
@@ -165,7 +167,7 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
     final iconColor = !item.enabled
         ? colorScheme.onSurface.withValues(alpha: 0.38)
         : isActive
-        ? widget.foregroundColor ?? colorScheme.onSecondaryContainer
+        ? widget.foregroundColor ?? colorScheme.onPrimary
         : widget.foregroundColor ?? colorScheme.onSurface;
 
     Widget button = Semantics(
@@ -178,7 +180,7 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
         curve: widget.animationCurve,
         decoration: BoxDecoration(
           color: isActive
-              ? widget.activeColor ?? colorScheme.primaryContainer
+              ? widget.activeColor ?? colorScheme.primary
               : Colors.transparent,
           shape: .rectangle,
         ),
@@ -231,26 +233,16 @@ class _FloatingNavigationState extends State<FloatingNavigation> {
           opacity: isActive ? 0.0 : 1.0,
           duration: activeDuration,
           curve: widget.animationCurve,
-          child: AnimatedScale(
-            scale: isActive ? 0.5 : 1.0,
-            duration: activeDuration,
-            curve: widget.animationCurve,
-            child: Icon(item.icon, size: widget.iconSize, color: iconColor),
-          ),
+          child: Icon(item.icon, size: widget.iconSize, color: iconColor),
         ),
         AnimatedOpacity(
           opacity: isActive ? 1.0 : 0.0,
           duration: activeDuration,
           curve: widget.animationCurve,
-          child: AnimatedScale(
-            scale: isActive ? 1.0 : 0.5,
-            duration: activeDuration,
-            curve: widget.animationCurve,
-            child: Icon(
-              item.activeIcon!,
-              size: widget.iconSize,
-              color: iconColor,
-            ),
+          child: Icon(
+            item.activeIcon!,
+            size: widget.iconSize,
+            color: iconColor,
           ),
         ),
       ],

@@ -22,7 +22,9 @@ class $AssetsGenAssets {
 class $AssetsGenAssetsImgs {
   const $AssetsGenAssetsImgs();
 
+  final AssetGenImage alex = const AssetGenImage('assets/imgs/alex.png');
   final AssetGenImage icon = const AssetGenImage('assets/imgs/icon.png');
+  final AssetGenImage neoforged = const AssetGenImage('assets/imgs/neoforged.png');
 }
 
 class $AssetsGenAssetsFonts {
